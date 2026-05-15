@@ -43,7 +43,7 @@ def set_job_command(printer_name, job_id, command=win32print.JOB_CONTROL_RESTART
 def last_job(printer_name):
     df_printers, df_jobs = get_printers_jobs()
 
-    if df_jobs.shape[0] > 0:
+    if df_jobs.shape[0] > 0 and "Submitted" in df_jobs.columns:
         df_jobs_filtered = df_jobs.loc[df_jobs["pPrinterName"] == printer_name]
 
         if df_jobs_filtered.shape[0] > 0:
@@ -66,22 +66,23 @@ def _get_jobs(printer_name):
     # if print_jobs:
     #     jobs.extend(list(print_jobs))
     for job in print_jobs:
-        submitted = str(job["Submitted"])
-        # sample format 2023-01-05 07:09:48.772000+00:00
-        obj_dt = datetime.strptime(submitted.rstrip("+00:00"), '%Y-%m-%d %H:%M:%S.%f')
+        if "Submitted" in job and job["Submitted"] is not None:
+            submitted = str(job["Submitted"])
+            # sample format 2023-01-05 07:09:48.772000+00:00
+            obj_dt = datetime.strptime(submitted.rstrip("+00:00"), '%Y-%m-%d %H:%M:%S.%f')
 
-        utc_zone = tz.tzutc()
-        local_zone = tz.tzlocal()
+            utc_zone = tz.tzutc()
+            local_zone = tz.tzlocal()
 
-        # set obj_dt to UTC
-        obj_dt = obj_dt.replace(tzinfo=utc_zone)
-        # convert from UTC to local timezone
-        local_date_time = obj_dt.astimezone(local_zone)
+            # set obj_dt to UTC
+            obj_dt = obj_dt.replace(tzinfo=utc_zone)
+            # convert from UTC to local timezone
+            local_date_time = obj_dt.astimezone(local_zone)
 
-        # remove timezone from date/time
-        local_date_time = local_date_time.replace(tzinfo=None)
+            # remove timezone from date/time
+            local_date_time = local_date_time.replace(tzinfo=None)
 
-        job["Submitted"] = local_date_time
+            job["Submitted"] = local_date_time
         jobs.append(job)
 
     win32print.ClosePrinter(printer_handle)
@@ -126,7 +127,11 @@ def get_printers_jobs():
         df_printers["jobs"].fillna(0, inplace=True)
 
     # remove time zone and convert to datetime object
-    df_jobs["Submitted"] = pd.to_datetime(df_jobs["Submitted"])
+    if "Submitted" in df_jobs.columns:
+        df_jobs["Submitted"] = pd.to_datetime(df_jobs["Submitted"])
+        df_jobs = df_jobs.astype(
+            {'Submitted': 'datetime64[ns]'}
+        )
 
     df_printers = df_printers[["name", "desc", "jobs", "live"]]
     df_printers = df_printers.astype(
@@ -137,14 +142,10 @@ def get_printers_jobs():
          }
     )
 
-    df_jobs = df_jobs.astype(
-        {'Submitted': 'datetime64[ns]'}
-    )
-
     # sorting printer names ASC
     df_printers.sort_values(by='name', ascending=True, inplace=True)
     # sorting jobs DESC
-    if df_jobs.shape[0] > 0:
+    if df_jobs.shape[0] > 0 and "Submitted" in df_jobs.columns:
         df_jobs.sort_values(by=['Submitted', 'JobId'], ascending=False, inplace=True)
 
     return df_printers, df_jobs
