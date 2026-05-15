@@ -76,7 +76,7 @@ def main():
         enable_enterprise_modules=False
     )
 
-    selected_printer = grid_response['selected_rows']
+    selected_printer = grid_response.get('selected_rows') or []
     if len(selected_printer) > 0 and df_jobs.shape[0] > 0:
         printer_name = selected_printer[0]["name"]
 
@@ -114,7 +114,7 @@ def main():
             enable_enterprise_modules=False
         )
 
-        selected_jobs = grid_response['selected_rows']
+        selected_jobs = grid_response.get('selected_rows') or []
         # st.write(selected_jobs)
 
         if len(selected_jobs) > 0:
